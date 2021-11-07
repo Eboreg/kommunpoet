@@ -1,3 +1,4 @@
+import locale
 import random
 import re
 import shelve
@@ -7,6 +8,9 @@ from urllib.parse import unquote, urljoin
 
 import requests
 from bs4 import BeautifulSoup
+
+
+locale.setlocale(locale.LC_COLLATE, "sv_SE.UTF-8")
 
 
 def split_sentence(sentence: str) -> List[str]:
@@ -40,6 +44,9 @@ class Kommun:
 
     def __eq__(self, other):
         return other.__class__ == self.__class__ and other.id == self.id
+
+    def __lt__(self, other):
+        return locale.strxfrm(self.name) < locale.strxfrm(other.name)
 
     def __repr__(self):
         return self.name
@@ -171,7 +178,7 @@ class Kommunpoet:
     @property
     def choices(self):
         yield ("", "SLUMPMÄSSIG KOMMUN")
-        for kommun in self.kommuner:
+        for kommun in sorted(self.kommuner):
             yield (kommun.id, kommun.name)
 
     @property
@@ -205,7 +212,6 @@ class Kommunpoet:
             id = unquote(link["href"].strip("/wiki/"))
             if self.get_kommun_by_id(id) is None:
                 self.kommuner.append(Kommun(id, link.text))
-        self.kommuner = sorted(self.kommuner, key=lambda k: k.name)
         self.sync_db()
 
     def get_kommun_by_id(self, id: str) -> Optional[Kommun]:
