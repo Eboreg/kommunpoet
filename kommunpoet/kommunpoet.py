@@ -2,8 +2,8 @@ import random
 import re
 import shelve
 import unicodedata
-from typing import Dict, List, Optional, Tuple
-from urllib.parse import urljoin, unquote
+from typing import List, Optional, Tuple
+from urllib.parse import unquote, urljoin
 
 import requests
 from bs4 import BeautifulSoup
@@ -159,28 +159,29 @@ class Kommun:
 
 class Kommunpoet:
     db_name = "database"
-    kommuner: Dict[str, Kommun]  # str = id
+    # kommuner: Dict[str, Kommun]  # str = id
+    kommuner: List[Kommun]  # str = id
 
     def __init__(self):
         with shelve.open(self.db_name, "c") as db:
-            self.kommuner = db.get("kommuner") or {}
+            self.kommuner = db.get("kommuner") or []
         if not self.kommuner:
             self.fetch_links()
 
     @property
     def choices(self):
         yield ("", "SLUMPMÄSSIG KOMMUN")
-        for kommun in self.kommuner.values():
+        for kommun in self.kommuner:
             yield (kommun.id, kommun.name)
 
     @property
     def random_kommun(self) -> Kommun:
-        return random.choice(list(self.kommuner.values()))
+        return random.choice(self.kommuner)
 
     def compile(self, all=False):
         """If all=False, only compile those in need of compiling"""
         try:
-            for kommun in self.kommuner.values():
+            for kommun in self.kommuner:
                 if all or not kommun.is_compiled:
                     print(f"Compiling {kommun}")
                     kommun.compile()
@@ -190,7 +191,7 @@ class Kommunpoet:
     def fetch_data(self, all=False):
         """If all=False, only fetch those in need of fetching"""
         try:
-            for kommun in self.kommuner.values():
+            for kommun in self.kommuner:
                 if all or not kommun.is_fetched:
                     print(f"Fetching data for {kommun}")
                     kommun.fetch()
@@ -201,31 +202,27 @@ class Kommunpoet:
         response = requests.get("https://sv.wikipedia.org/wiki/Lista_över_Sveriges_kommuner")
         soup = BeautifulSoup(response.content, "html.parser")
         for link in soup.select_one("table.wikitable").select("td:nth-child(2) a"):
-            id = link["href"].strip("/wiki/")
-            id_unquoted = unquote(id)
-            if id in self.kommuner and id_unquoted not in self.kommuner:
-                self.kommuner[id_unquoted] = self.kommuner[id]
-                del self.kommuner[id]
-            if id_unquoted not in self.kommuner:
-                self.kommuner[id_unquoted] = Kommun(id_unquoted, link.text)
+            id = unquote(link["href"].strip("/wiki/"))
+            if self.get_kommun_by_id(id) is None:
+                self.kommuner.append(Kommun(id, link.text))
+        self.kommuner = sorted(self.kommuner, key=lambda k: k.name)
         self.sync_db()
 
+    def get_kommun_by_id(self, id: str) -> Optional[Kommun]:
+        for kommun in self.kommuner:
+            if kommun.id == unquote(id):
+                return kommun
+        return None
+
     def get_name_and_poem(self, id: Optional[str]) -> Tuple[str, str]:
-        if id is not None and id not in self.kommuner:
-            return f"Hittade inte kommunen {id}. ;(", ""
-        if id is None:
-            kommun = self.random_kommun
+        if id is not None:
+            kommun = self.get_kommun_by_id(id)
+            if kommun is None:
+                return f"Hittade inte kommunen {id}. ;(", ""
         else:
-            kommun = self.kommuner[id]
+            kommun = self.random_kommun
         return kommun.name, kommun.poem
 
     def sync_db(self):
         with shelve.open(self.db_name, "n") as db:
             db["kommuner"] = self.kommuner
-
-
-if __name__ == "__main__":
-    kp = Kommunpoet()
-    kommun = kp.random_kommun
-    print(f"{kommun}\n")
-    print(kommun.poem)
