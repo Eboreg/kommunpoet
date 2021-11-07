@@ -12,7 +12,13 @@ def get_html(kommun_id=None) -> str:
     jinja = Environment(loader=PackageLoader("kommunpoet", "templates"), autoescape=select_autoescape(["html"]))
     template = jinja.get_template("index.html")
     kommun_name, poem = kp.get_name_and_poem(kommun_id)
-    return template.render(choices=kp.choices, kommun_id=kommun_id, kommun_name=kommun_name, poem=poem)
+    return template.render(
+        choices=kp.choices,
+        kommun_id=kommun_id,
+        kommun_name=kommun_name,
+        poem=poem,
+        title_name=kommun_name if kommun_id else None
+    )
 
 
 def application(environ, start_response):
