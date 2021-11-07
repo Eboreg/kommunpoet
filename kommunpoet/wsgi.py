@@ -1,5 +1,5 @@
 from typing import Optional
-from urllib.parse import parse_qs, quote
+from urllib.parse import parse_qs
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -27,7 +27,7 @@ def application(environ, start_response):
     kommun_id: Optional[str]
 
     if "id" in qs:
-        kommun_id = quote(qs["id"][0])
+        kommun_id = qs["id"][0]
     else:
         kommun_id = None
 
