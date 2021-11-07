@@ -1,5 +1,5 @@
 from typing import Optional
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -11,11 +11,8 @@ kp = Kommunpoet()
 def get_html(kommun_id=None) -> str:
     jinja = Environment(loader=PackageLoader("kommunpoet", "templates"), autoescape=select_autoescape(["html"]))
     template = jinja.get_template("index.html")
-    if kommun_id:
-        kommun = kp.kommuner[kommun_id]
-    else:
-        kommun = kp.random_kommun
-    return template.render(choices=kp.choices, kommun_id=kommun_id, kommun_name=kommun.name, poem=kommun.poem)
+    kommun_name, poem = kp.get_name_and_poem(kommun_id)
+    return template.render(choices=kp.choices, kommun_id=kommun_id, kommun_name=kommun_name, poem=poem)
 
 
 def application(environ, start_response):
@@ -30,7 +27,7 @@ def application(environ, start_response):
     kommun_id: Optional[str]
 
     if "id" in qs:
-        kommun_id = qs["id"][0]
+        kommun_id = quote(qs["id"][0])
     else:
         kommun_id = None
 

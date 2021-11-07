@@ -2,7 +2,7 @@ import random
 import re
 import shelve
 import unicodedata
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import requests
@@ -206,6 +206,15 @@ class Kommunpoet:
             if id not in self.kommuner:
                 self.kommuner[id] = Kommun(id, link.text)
         self.sync_db()
+
+    def get_name_and_poem(self, id: Optional[str]) -> Tuple[str, str]:
+        if id is not None and id not in self.kommuner:
+            return f"Hittade inte kommunen {id}. ;(", ""
+        if id is None:
+            kommun = self.random_kommun
+        else:
+            kommun = self.kommuner[id]
+        return kommun.name, kommun.poem
 
     def sync_db(self):
         with shelve.open(self.db_name, "n") as db:
