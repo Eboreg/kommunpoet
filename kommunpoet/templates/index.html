@@ -18,6 +18,10 @@
             font-weight: bold;
         }
 
+        pre {
+            white-space: pre-wrap;
+        }
+
         #poem {
             border-width: 1px;
             border-style: dashed;
@@ -50,7 +54,7 @@
                     <button type="submit" class="btn text-light border-light">Generera dikt</button>
                 </form>
             </div>
-            <div class="p-3" id="poem">
+            <div class="p-3 my-4" id="poem">
                 <h2>{{ kommun_name }}</h2>
                 <pre class="mb-0">{{ poem }}</pre>
             </div>
