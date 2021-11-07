@@ -1,0 +1,7 @@
+python -m venv .venv
+source .venv/bin/activate
+pip install wheel pip-tools
+pip-sync
+./setup.py install --force
+kommunpoet --fetch --compile
+kommunpoet --test-server

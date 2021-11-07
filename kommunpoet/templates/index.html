@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="sv">
+
+<head>
+    <title>Kommunpoet</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        crossorigin="anonymous">
+    <style>
+        html, body {
+            height: 100%;
+        }
+
+        a {
+            color: var(--bs-light);
+            font-weight: bold;
+        }
+
+        #poem {
+            border-width: 1px;
+            border-style: dashed;
+            border-radius: 8px;
+            border-color: var(--bs-gray-600);
+        }
+    </style>
+</head>
+
+<body class="bg-dark text-light">
+    <div class="d-flex flex-column h-100">
+        <header class="bg-black py-3">
+            <div class="container">
+                <h1>Kommunpoet</h1>
+                <p class="m-0">
+                    Är du en kommun, som önskar att du också hade en kommunpoet?
+                    Grattis, nu har du en &mdash; helt gratis!
+                </p>
+            </div>
+        </header>
+
+        <div class="container flex-grow-1">
+            <div class="my-4">
+                <form action="" method="get">
+                    <select name="id" class="me-4 form-select d-inline-block w-auto bg-dark text-light">
+                        {% for id, name in choices %}
+                        <option value="{{ id }}"{% if id == kommun_id %} selected{% endif %}>{{ name }}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn text-light border-light">Generera dikt</button>
+                </form>
+            </div>
+            <div class="p-3" id="poem">
+                <h2>{{ kommun_name }}</h2>
+                <pre class="mb-0">{{ poem }}</pre>
+            </div>
+        </div>
+
+        <footer class="bg-black py-3">
+            <div class="container">
+                Av Robert Huselius.
+                <a href="https://github.com/Eboreg">Här</a> är min Github och
+                <a href="https://anchor.fm/musikens-makt">här</a> är min helt orelaterade podd.
+            </div>
+        </footer>
+    </div>
+</body>
+
+</html>
