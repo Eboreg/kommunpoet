@@ -15,7 +15,7 @@ def get_html(kommun_id=None) -> str:
         kommun = kp.kommuner[kommun_id]
     else:
         kommun = kp.random_kommun
-    return template.render(choices=kp.choices, kommun_id=kommun.id, kommun_name=kommun.name, poem=kommun.poem)
+    return template.render(choices=kp.choices, kommun_id=kommun_id, kommun_name=kommun.name, poem=kommun.poem)
 
 
 def application(environ, start_response):

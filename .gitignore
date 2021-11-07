@@ -4,4 +4,5 @@
 build
 dist
 kommunpoet.egg-info
-database
+database*
+config.ini
