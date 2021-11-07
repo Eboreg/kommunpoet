@@ -9,6 +9,7 @@ from kommunpoet.wsgi import application
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--fetch-links", action="store_true", help="Fetch links")
     parser.add_argument("--fetch", action="store_true", help="Fetch HTML")
     parser.add_argument("--compile", action="store_true", help="Compile fetched HTML")
     parser.add_argument("--test-server", action="store_true", help="Fire up a test server")
@@ -17,6 +18,9 @@ def main():
     args = parser.parse_args()
     kp = Kommunpoet()
 
+    if args.fetch_links:
+        print("Fetching all links")
+        kp.fetch_links()
     if args.fetch:
         print("Fetching data")
         kp.fetch_data(args.force)

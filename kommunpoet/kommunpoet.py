@@ -3,7 +3,7 @@ import re
 import shelve
 import unicodedata
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import urljoin
+from urllib.parse import urljoin, unquote
 
 import requests
 from bs4 import BeautifulSoup
@@ -198,13 +198,16 @@ class Kommunpoet:
             self.sync_db()
 
     def fetch_links(self):
-        print("Fetching all links")
         response = requests.get("https://sv.wikipedia.org/wiki/Lista_över_Sveriges_kommuner")
         soup = BeautifulSoup(response.content, "html.parser")
         for link in soup.select_one("table.wikitable").select("td:nth-child(2) a"):
             id = link["href"].strip("/wiki/")
-            if id not in self.kommuner:
-                self.kommuner[id] = Kommun(id, link.text)
+            id_unquoted = unquote(id)
+            if id in self.kommuner and id_unquoted not in self.kommuner:
+                self.kommuner[id_unquoted] = self.kommuner[id]
+                del self.kommuner[id]
+            if id_unquoted not in self.kommuner:
+                self.kommuner[id_unquoted] = Kommun(id_unquoted, link.text)
         self.sync_db()
 
     def get_name_and_poem(self, id: Optional[str]) -> Tuple[str, str]:
