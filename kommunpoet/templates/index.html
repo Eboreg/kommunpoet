@@ -42,7 +42,7 @@
         <div class="container flex-grow-1">
             <div class="my-4">
                 <form action="" method="get">
-                    <select name="id" class="me-4 form-select d-inline-block w-auto bg-dark text-light">
+                    <select name="id" class="me-4 form-select d-inline-block w-auto bg-dark text-light mb-3 mb-sm-0">
                         {% for id, name in choices %}
                         <option value="{{ id }}"{% if id == kommun_id %} selected{% endif %}>{{ name }}</option>
                         {% endfor %}
