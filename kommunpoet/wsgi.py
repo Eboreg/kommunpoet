@@ -45,7 +45,8 @@ def application(environ, start_response):
     port = environ.get("SERVER_PORT", "80")
     if port != "80":
         directlink += ":" + port
-    directlink += "/?" + urlencode(qs, doseq=True)
+    directlink += environ.get("PATH_INFO")
+    directlink += "?" + urlencode(qs, doseq=True)
 
     kommun_id: Optional[str]
     if "id" in qs:
