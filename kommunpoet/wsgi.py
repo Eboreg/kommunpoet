@@ -10,20 +10,11 @@ from kommunpoet.kommunpoet import Kommunpoet
 kp = Kommunpoet()
 
 
-def get_html(seed: int, directlink: str, kommun_id=None, chaos=False) -> str:
+def get_html(**context) -> str:
     jinja = Environment(loader=PackageLoader("kommunpoet", "templates"), autoescape=select_autoescape(["html"]))
     template = jinja.get_template("index.html")
 
-    kommun_name, poem = kp.get_name_and_poem(id=kommun_id, chaos=chaos, seed=seed)
-    return template.render(
-        choices=kp.choices,
-        kommun_id=kommun_id,
-        kommun_name=kommun_name,
-        poem=poem,
-        chaos=chaos,
-        directlink=directlink,
-        title_name=kommun_name if kommun_id else None
-    )
+    return template.render(context)
 
 
 def application(environ, start_response):
@@ -35,22 +26,26 @@ def application(environ, start_response):
         return []
 
     qs = parse_qs(environ["QUERY_STRING"])
+    path = environ.get("REQUEST_URI", "").split("?")[0]
 
     try:
         seed = int(qs["seed"][0])
     except (ValueError, IndexError, KeyError):
         seed = random.randint(1, sys.maxsize)
+        qs.update(chaos=["true"], seed=[str(seed)])
+        response_headers = [
+            ("Location", path + "?" + urlencode(qs, doseq=True)),
+        ]
+        start_response("302 Found", response_headers)
+        return [b""]
 
-    qs.update(seed=[str(seed)])
-    directlink = environ.get("wsgi.url_scheme") + "://" + environ.get("SERVER_NAME")
+    host = environ.get("wsgi.url_scheme") + "://" + environ.get("SERVER_NAME")
     port = environ.get("SERVER_PORT", "80")
     if port != "80":
-        directlink += ":" + port
-    path = environ.get("REQUEST_URI", "").split("?")[0]
-    directlink = urljoin(directlink, path)
-    directlink += "?" + urlencode(qs, doseq=True)
+        host += ":" + port
 
-    print(environ)
+    qs.update(seed=[str(seed)])
+    directlink = urljoin(host, path) + "?" + urlencode(qs, doseq=True)
 
     kommun_id: Optional[str]
     if "id" in qs:
@@ -58,7 +53,19 @@ def application(environ, start_response):
     else:
         kommun_id = None
 
-    html = get_html(seed=seed, directlink=directlink, kommun_id=kommun_id, chaos="chaos" in qs)
+    chaos = "chaos" in qs
+
+    kommun_name, poem = kp.get_name_and_poem(id=kommun_id, chaos=chaos, seed=seed)
+    html = get_html(
+        title_name=kommun_name if kommun_id else None,
+        choices=kp.choices,
+        kommun_id=kommun_id,
+        chaos=chaos,
+        kommun_name=kommun_name,
+        poem=poem,
+        directlink=directlink,
+    )
+
     response_headers = [
         ("Content-Type", "text/html"),
         ("Content-Length", str(len(html))),
