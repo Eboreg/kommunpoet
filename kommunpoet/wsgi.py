@@ -7,13 +7,14 @@ from jinja2 import Environment, PackageLoader, select_autoescape
 
 from kommunpoet.kommunpoet import Kommunpoet
 
+kp = Kommunpoet()
+
 
 def get_html(seed: int, directlink: str, kommun_id=None, chaos=False) -> str:
     jinja = Environment(loader=PackageLoader("kommunpoet", "templates"), autoescape=select_autoescape(["html"]))
     template = jinja.get_template("index.html")
-    kp = Kommunpoet(seed=seed)
 
-    kommun_name, poem = kp.get_name_and_poem(id=kommun_id, chaos=chaos)
+    kommun_name, poem = kp.get_name_and_poem(id=kommun_id, chaos=chaos, seed=seed)
     return template.render(
         choices=kp.choices,
         kommun_id=kommun_id,
@@ -45,8 +46,11 @@ def application(environ, start_response):
     port = environ.get("SERVER_PORT", "80")
     if port != "80":
         directlink += ":" + port
-    directlink += environ.get("PATH_INFO")
-    directlink += "?" + urlencode(qs, doseq=True)
+    if environ.get("SERVER_NAME") == "huseli.us":  # yes, ugly as hell
+        directlink += "/kommunpoet"
+    directlink += "/?" + urlencode(qs, doseq=True)
+
+    print(environ)
 
     kommun_id: Optional[str]
     if "id" in qs:

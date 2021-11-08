@@ -216,26 +216,18 @@ class Kommunpoet:
     db_name = "database"
     # kommuner: Dict[str, Kommun]  # str = id
     kommuner: List[Kommun]  # str = id
-    seed: Optional[int]
 
-    def __init__(self, seed=None):
+    def __init__(self):
         with shelve.open(self.db_name, "c") as db:
             self.kommuner = db.get("kommuner") or []
         if not self.kommuner:
             self.fetch_links()
-        self.seed = seed
 
     @property
     def choices(self):
         yield ("", "SLUMPMÄSSIG KOMMUN")
         for kommun in sorted(self.kommuner):
             yield (kommun.id, kommun.name)
-
-    @property
-    def random_kommun(self) -> Kommun:
-        if self.seed:
-            random.seed(self.seed)
-        return random.choice(self.kommuner)
 
     def compile(self, all=False):
         """If all=False, only compile those in need of compiling"""
@@ -272,14 +264,19 @@ class Kommunpoet:
                 return kommun
         return None
 
-    def get_name_and_poem(self, id: Optional[str] = None, chaos=False) -> Tuple[str, str]:
+    def get_name_and_poem(self, id: Optional[str] = None, seed=None, chaos=False) -> Tuple[str, str]:
         if id is not None:
             kommun = self.get_kommun_by_id(id)
             if kommun is None:
                 return f"Hittade inte kommunen {id}. ;(", ""
         else:
-            kommun = self.random_kommun
-        return kommun.name, kommun.get_poem(seed=self.seed, chaos=chaos)
+            kommun = self.get_random_kommun(seed)
+        return kommun.name, kommun.get_poem(seed=seed, chaos=chaos)
+
+    def get_random_kommun(self, seed=None) -> Kommun:
+        if seed:
+            random.seed(seed)
+        return random.choice(self.kommuner)
 
     def sync_db(self):
         with shelve.open(self.db_name, "n") as db:
