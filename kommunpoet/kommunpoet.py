@@ -9,25 +9,55 @@ from urllib.parse import unquote, urljoin
 import requests
 from bs4 import BeautifulSoup
 
-
 locale.setlocale(locale.LC_COLLATE, "sv_SE.UTF-8")
 
+breakwords = (
+    "en", "ett", "och", "på", "i", "till", "som", "av", "efter", "från", "för",
+    "genom", "hos", "om", "vid", "med", "under", "har", "eller", "att", "samt"
+)
 
-def split_sentence(sentence: str) -> List[str]:
-    # Treat thousand-separated numbers as one word
-    # Also digit + space + "%"
-    new_sentence = ""
-    for idx, char in enumerate(sentence):
-        if char == " " and \
-                idx > 0 and len(sentence) > idx + 1 and \
-                sentence[idx - 1].isdigit() and \
-                (sentence[idx + 1].isdigit() or sentence[idx + 1] == "%"):
-            new_sentence += "<NOBREAK>"
-        else:
-            new_sentence += char
-    words = new_sentence.split()
-    words = [w.replace("<NOBREAK>", " ") for w in words]
-    return words
+idioms = [
+    "i och med",
+    "från och med",
+    "till och med",
+]
+
+
+def split_sentence_into_rows(sentence: str) -> List[str]:
+    # 1. Make certain idioms non-breakable
+    for idiom in idioms:
+        sentence = sentence.replace(idiom, idiom.replace(" ", "<NOBREAK>"))
+    # 2. Split paranthesised phrases to new rows
+    rows = []
+    while True:
+        match = re.search(r"\(.*?\)", sentence)
+        if not match:
+            if sentence:
+                rows.append(sentence)
+            break
+        rows.extend([sentence[:match.start()].strip(), match.group().strip("()")])
+        sentence = sentence[match.end():].strip()
+    # 3. Split at comma, colon, and semicolon
+    new_rows: List[str] = []
+    for row in rows:
+        new_rows.extend(re.split(r"[;:,] ", row))
+    rows = new_rows
+    # 4. New row at "breakwords", but only if there are enough words before
+    # and after them
+    new_rows = []
+    for row in rows:
+        words = row.split(" ")
+        new_words: List[str] = []
+        for idx, word in enumerate(words):
+            if word in breakwords and len(new_words) > 3 and len(words) - idx >= 3:
+                new_rows.append(" ".join(new_words))
+                new_words = []
+            new_words.append(word)
+        new_rows.append(" ".join(new_words))
+    rows = [row.replace("<NOBREAK>", " ").strip(" .;:!?") for row in new_rows]
+    rows = [re.sub(r" {2,}", " ", row) for row in rows]
+    rows = [row for row in rows if row]
+    return rows
 
 
 class Kommun:
@@ -83,7 +113,6 @@ class Kommun:
                     sup.extract()
                 text = unicodedata.normalize("NFKC", child.text)
                 text = text.replace("\n", " ")
-                text = re.sub(r"[()]*", "", text)
                 text = text.strip().lower()
                 subsections.append(text)
             elif subsections:
@@ -139,23 +168,13 @@ class Kommun:
         sections = sections or self.sections
         section_idx = random.randint(0, len(sections) - 1)
         for subsection in sections[section_idx]:
-            sentences = re.split(r"[.?!:,] ", subsection)
-            sentences = [s.strip(".?!:, ") for s in sentences]
+            sentences = re.split(r"[.?!] ", subsection)
             for sentence in sentences:
-                if sentence == "blasonering":
+                if sentence.startswith("blasonering"):
                     continue
                 if len(poem) >= 10:
                     break
-                words = split_sentence(sentence)
-                if len(words) > 7:
-                    while words:
-                        end_idx = random.randint(3, 7)
-                        if end_idx == len(words) - 1:
-                            end_idx = len(words)
-                        poem.append(" ".join(words[:end_idx]).strip(".?!:, "))
-                        words = words[end_idx:]
-                else:
-                    poem.append(" ".join(words))
+                poem.extend(split_sentence_into_rows(sentence))
         while len(poem) < 10:
             sections = sections[:section_idx] + sections[section_idx + 1:]
             if not sections:
