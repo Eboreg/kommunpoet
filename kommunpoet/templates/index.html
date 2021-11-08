@@ -2,7 +2,7 @@
 <html lang="sv">
 
 <head>
-    <title>Kommunpoet{% if title_name %} | {{ title_name }}{% endif %}</title>
+    <title>Kommunpoet{% if kommun_id and kommun_name %} | {{ kommun_name }}{% endif %}</title>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="description" content="Alla kommuner förtjänar en kommunpoet." />
@@ -26,7 +26,7 @@
         #poem {
             border-width: 1px;
             border-style: dashed;
-            border-radius: 8px;
+            border-radius: .3rem;
             border-color: var(--bs-gray-600);
         }
 
@@ -53,9 +53,7 @@
             <div class="my-4">
                 <form action="" method="get">
                     <select name="id" class="me-4 form-select d-inline-block w-auto bg-dark text-light mb-3 mb-sm-0">
-                        {% for id, name in choices %}
-                        <option value="{{ id }}" {% if id == kommun_id %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
+                        {% for id, name in choices %}<option value="{{ id }}"{% if id == kommun_id %} selected{% endif %}>{{ name }}</option>{% endfor %}
                     </select>
                     <div class="form-check form-check-inline">
                         <input type="checkbox" class="form-check-input" name="chaos" id="chaos" value="true"
@@ -65,6 +63,11 @@
                     <button type="submit" class="btn text-light border-light">Generera dikt</button>
                 </form>
             </div>
+            {% if error %}
+            <div class="alert alert-danger font-monospace small">
+                {{ error }}
+            </div>
+            {% endif %}
             <div class="p-3 my-4" id="poem">
                 <h2>{{ kommun_name }}</h2>
                 <pre class="mb-0">{{ poem }}</pre>

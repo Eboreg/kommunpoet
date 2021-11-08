@@ -3,7 +3,7 @@ import random
 import re
 import shelve
 import unicodedata
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from urllib.parse import unquote, urljoin
 
 import requests
@@ -183,7 +183,8 @@ class Kommun:
             sentences = []
             while len(poem) < 10:
                 sentence = model.make_sentence(tries=100)
-                if sentence and sentence not in sentences and not sentence.startswith("blasonering"):
+                sentence = re.sub(r"(källa|källor|blasonering): ", "", sentence, flags=re.IGNORECASE)
+                if sentence and sentence not in sentences:
                     poem.extend(split_sentence_into_rows(sentence) + [""])
                     sentences.append(sentence)
 
@@ -214,7 +215,6 @@ class Kommun:
 
 class Kommunpoet:
     db_name = "database"
-    # kommuner: Dict[str, Kommun]  # str = id
     kommuner: List[Kommun]  # str = id
 
     def __init__(self):
@@ -263,15 +263,6 @@ class Kommunpoet:
             if kommun.id == unquote(id):
                 return kommun
         return None
-
-    def get_name_and_poem(self, id: Optional[str] = None, seed=None, chaos=False) -> Tuple[str, str]:
-        if id is not None:
-            kommun = self.get_kommun_by_id(id)
-            if kommun is None:
-                return f"Hittade inte kommunen {id}. ;(", ""
-        else:
-            kommun = self.get_random_kommun(seed)
-        return kommun.name, kommun.get_poem(seed=seed, chaos=chaos)
 
     def get_random_kommun(self, seed=None) -> Kommun:
         if seed:

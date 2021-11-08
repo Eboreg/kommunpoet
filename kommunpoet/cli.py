@@ -4,7 +4,7 @@ import argparse
 from wsgiref.simple_server import make_server
 
 from kommunpoet.kommunpoet import Kommunpoet
-from kommunpoet.wsgi import application
+from kommunpoet.wsgi import Application
 
 
 def fetch_links(args):
@@ -24,7 +24,7 @@ def compile(args):
 
 def test_server(args):
     print("Listening on port 8000")
-    httpd = make_server("localhost", 8000, application)
+    httpd = make_server("localhost", 8000, Application)
     while True:
         try:
             httpd.handle_request()
