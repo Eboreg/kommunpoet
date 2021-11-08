@@ -1,7 +1,7 @@
 import random
 import sys
 from typing import Optional
-from urllib.parse import parse_qs, urlencode
+from urllib.parse import parse_qs, urlencode, urljoin
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -46,9 +46,9 @@ def application(environ, start_response):
     port = environ.get("SERVER_PORT", "80")
     if port != "80":
         directlink += ":" + port
-    if environ.get("SERVER_NAME") == "huseli.us":  # yes, ugly as hell
-        directlink += "/kommunpoet"
-    directlink += "/?" + urlencode(qs, doseq=True)
+    path = environ.get("REQUEST_URI", "").split("?")[0]
+    directlink = urljoin(directlink, path)
+    directlink += "?" + urlencode(qs, doseq=True)
 
     print(environ)
 
