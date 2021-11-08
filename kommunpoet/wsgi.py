@@ -1,16 +1,18 @@
+import random
+import sys
 from typing import Optional
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlencode
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from kommunpoet.kommunpoet import Kommunpoet
 
-kp = Kommunpoet()
 
-
-def get_html(kommun_id=None, chaos=False) -> str:
+def get_html(seed: int, directlink: str, kommun_id=None, chaos=False) -> str:
     jinja = Environment(loader=PackageLoader("kommunpoet", "templates"), autoescape=select_autoescape(["html"]))
     template = jinja.get_template("index.html")
+    kp = Kommunpoet(seed=seed)
+
     kommun_name, poem = kp.get_name_and_poem(id=kommun_id, chaos=chaos)
     return template.render(
         choices=kp.choices,
@@ -18,6 +20,7 @@ def get_html(kommun_id=None, chaos=False) -> str:
         kommun_name=kommun_name,
         poem=poem,
         chaos=chaos,
+        directlink=directlink,
         title_name=kommun_name if kommun_id else None
     )
 
@@ -31,14 +34,26 @@ def application(environ, start_response):
         return []
 
     qs = parse_qs(environ["QUERY_STRING"])
-    kommun_id: Optional[str]
 
+    try:
+        seed = int(qs["seed"][0])
+    except (ValueError, IndexError, KeyError):
+        seed = random.randint(1, sys.maxsize)
+
+    qs.update(seed=[str(seed)])
+    directlink = environ.get("wsgi.url_scheme") + "://" + environ.get("SERVER_NAME")
+    port = environ.get("SERVER_PORT", "80")
+    if port != "80":
+        directlink += ":" + port
+    directlink += "/?" + urlencode(qs, doseq=True)
+
+    kommun_id: Optional[str]
     if "id" in qs:
         kommun_id = qs["id"][0]
     else:
         kommun_id = None
 
-    html = get_html(kommun_id, chaos="chaos" in qs)
+    html = get_html(seed=seed, directlink=directlink, kommun_id=kommun_id, chaos="chaos" in qs)
     response_headers = [
         ("Content-Type", "text/html"),
         ("Content-Length", str(len(html))),

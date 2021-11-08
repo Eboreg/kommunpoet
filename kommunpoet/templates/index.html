@@ -60,9 +60,7 @@
                     <div class="form-check form-check-inline">
                         <input type="checkbox" class="form-check-input" name="chaos" id="chaos" value="true"
                             {% if chaos %} checked{% endif %}>
-                        <label class="form-check-label" for="chaos">
-                            KaoZ mode
-                        </label>
+                        <label class="form-check-label" for="chaos">KaoZ!</label>
                     </div>
                     <button type="submit" class="btn text-light border-light">Generera dikt</button>
                 </form>
@@ -70,6 +68,9 @@
             <div class="p-3 my-4" id="poem">
                 <h2>{{ kommun_name }}</h2>
                 <pre class="mb-0">{{ poem }}</pre>
+            </div>
+            <div class="my-4">
+                <a href="{{ directlink }}">Direktlänk till denna dikt</a>
             </div>
         </div>
 

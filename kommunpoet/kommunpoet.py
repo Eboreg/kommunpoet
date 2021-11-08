@@ -6,9 +6,10 @@ import unicodedata
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import unquote, urljoin
 
-import markovify
 import requests
 from bs4 import BeautifulSoup
+
+from kommunpoet.markov import SeededText
 
 locale.setlocale(locale.LC_COLLATE, "sv_SE.UTF-8")
 
@@ -67,7 +68,7 @@ class Kommun:
     id: str  # "Huddinge_kommun"
     name: str  # "Huddinge kommun" (no underscore)
     html: List[bytes]
-    markov: Dict[str, Any]  # to be fed to markovify.Text.from_dict()
+    markov: Dict[str, Any]  # to be fed to SeededText.from_dict()
     sections: List[List[str]]
 
     def __init__(self, id: str, name: str):
@@ -107,9 +108,7 @@ class Kommun:
 
     @property
     def is_compiled(self) -> bool:
-        # TODO: Remove
-        return len(self.sections) > 0 and hasattr(self, "markov") and len(self.markov) > 0
-        # return len(self.sections) > 0 and len(self.markov) > 0
+        return len(self.sections) > 0 and len(self.markov) > 0
 
     @property
     def is_fetched(self) -> bool:
@@ -119,7 +118,7 @@ class Kommun:
         self.sections = []
         for html in self.html:
             self.sections.extend(self.compile_one(html))
-        self.markov = markovify.Text(self.flatten_sections()).compile().to_dict()
+        self.markov = SeededText(self.flatten_sections()).compile().to_dict()
 
     def compile_one(self, html: bytes) -> List[List[str]]:
         # Look for contingent <p> paragraphs
@@ -136,6 +135,8 @@ class Kommun:
                 text = unicodedata.normalize("NFKC", child.text)
                 text = text.replace("\n", " ")
                 text = re.sub(r" *\* *", " ", text)
+                # Special case: "Kungl. Maj:t"
+                text = re.sub(r"(kungl)\.", r"\1", text, flags=re.IGNORECASE)
                 text = text.strip()
                 subsections.append(text)
             elif subsections:
@@ -162,7 +163,7 @@ class Kommun:
         sections = sections or self.sections
         return " ".join([" ".join(s) for s in sections])
 
-    def generate_poem(self, poem=None, sections=None, chaos=False) -> List[str]:
+    def generate_poem(self, poem=None, sections=None, chaos=False, seed=None) -> List[str]:
         if self.id == "Tranemo_kommun":
             return [
                 "tranemo har redan",
@@ -178,7 +179,7 @@ class Kommun:
 
         if chaos:
             sections = sections or self.sections
-            model = markovify.Text.from_dict(self.markov)
+            model = SeededText.from_dict(self.markov, seed=seed)
             sentences = []
             while len(poem) < 10:
                 sentence = model.make_sentence(tries=100)
@@ -188,6 +189,8 @@ class Kommun:
 
         else:
             sections = sections or self.filtered_sections
+            if seed:
+                random.seed(seed)
             section_idx = random.randint(0, len(sections) - 1)
             for subsection in sections[section_idx]:
                 sentences = re.split(r"[.?!] ", subsection)
@@ -201,24 +204,26 @@ class Kommun:
                 sections = sections[:section_idx] + sections[section_idx + 1:]
                 if not sections:
                     break
-                poem = self.generate_poem(poem + [""], sections)
+                poem = self.generate_poem(seed=seed, poem=poem + [""], sections=sections)
 
         return poem
 
-    def get_poem(self, chaos=False) -> str:
-        return "\n".join(self.generate_poem(chaos=chaos)).strip()
+    def get_poem(self, seed=None, chaos=False) -> str:
+        return "\n".join(self.generate_poem(seed=seed, chaos=chaos)).strip()
 
 
 class Kommunpoet:
     db_name = "database"
     # kommuner: Dict[str, Kommun]  # str = id
     kommuner: List[Kommun]  # str = id
+    seed: Optional[int]
 
-    def __init__(self):
+    def __init__(self, seed=None):
         with shelve.open(self.db_name, "c") as db:
             self.kommuner = db.get("kommuner") or []
         if not self.kommuner:
             self.fetch_links()
+        self.seed = seed
 
     @property
     def choices(self):
@@ -228,6 +233,8 @@ class Kommunpoet:
 
     @property
     def random_kommun(self) -> Kommun:
+        if self.seed:
+            random.seed(self.seed)
         return random.choice(self.kommuner)
 
     def compile(self, all=False):
@@ -272,7 +279,7 @@ class Kommunpoet:
                 return f"Hittade inte kommunen {id}. ;(", ""
         else:
             kommun = self.random_kommun
-        return kommun.name, kommun.get_poem(chaos)
+        return kommun.name, kommun.get_poem(seed=self.seed, chaos=chaos)
 
     def sync_db(self):
         with shelve.open(self.db_name, "n") as db:
