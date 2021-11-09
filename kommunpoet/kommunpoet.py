@@ -3,6 +3,7 @@ import random
 import re
 import shelve
 import unicodedata
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 from urllib.parse import unquote, urljoin
 
@@ -67,16 +68,16 @@ def split_sentence_into_rows(sentence: str) -> List[str]:
 class Kommun:
     id: str  # "Huddinge_kommun"
     name: str  # "Huddinge kommun" (no underscore)
-    html: List[bytes]
     markov: Dict[str, Any]  # to be fed to SeededText.from_dict()
     sections: List[List[str]]
 
-    def __init__(self, id: str, name: str):
+    def __init__(
+            self, id: str, name: str, sections: Optional[List[List[str]]] = None,
+            markov: Optional[Dict[str, Any]] = None):
         self.id = id
         self.name = name
-        self.html = []
-        self.markov = {}
-        self.sections = []
+        self.markov = markov or {}
+        self.sections = sections or []
 
     def __eq__(self, other):
         return other.__class__ == self.__class__ and other.id == self.id
@@ -86,6 +87,15 @@ class Kommun:
 
     def __repr__(self):
         return self.name
+
+    @classmethod
+    def clone(cls, other):
+        return cls(
+            id=deepcopy(other.id),
+            name=deepcopy(other.name),
+            sections=deepcopy(other.sections),
+            markov=deepcopy(other.markov)
+        )
 
     @property
     def filtered_sections(self) -> List[List[str]]:
@@ -110,13 +120,9 @@ class Kommun:
     def is_compiled(self) -> bool:
         return len(self.sections) > 0 and len(self.markov) > 0
 
-    @property
-    def is_fetched(self) -> bool:
-        return len(self.html) > 0
-
-    def compile(self):
+    def compile(self, html_list: List[bytes]):
         self.sections = []
-        for html in self.html:
+        for html in html_list:
             self.sections.extend(self.compile_one(html))
         self.markov = SeededText(self.flatten_sections()).compile().to_dict()
 
@@ -144,20 +150,21 @@ class Kommun:
                 subsections = []
         return sections
 
-    def fetch(self):
-        self.html = []
+    def fetch(self) -> List[bytes]:
+        html = []
         response = requests.get(f"https://sv.wikipedia.org/wiki/{self.id}")
-        self.html.append(response.content)
+        html.append(response.content)
         soup = BeautifulSoup(response.content, "html.parser")
         try:
             for tr in soup.select_one("table.infobox").find_all("tr"):
                 if tr.find("th", string="Centralort"):
                     href = tr.select_one("td>a")["href"]
                     response = requests.get(urljoin("https://sv.wikipedia.org/", href))
-                    self.html.append(response.content)
+                    html.append(response.content)
                     break
         except Exception as e:
             print(f"*** Could not get 'Centralort' page for {self.name}: {e}")
+        return html
 
     def flatten_sections(self, sections: Optional[List[List[str]]] = None) -> str:
         sections = sections or self.sections
@@ -230,24 +237,42 @@ class Kommunpoet:
             yield (kommun.id, kommun.name)
 
     def compile(self, all=False):
-        """If all=False, only compile those in need of compiling"""
+        """
+        If all=False, only compile those in need of compiling
+
+        In order to minimize memory usage, we don't store the html as an
+        object attribute anywhere.
+        """
+        with shelve.open(self.db_name, "c") as db:
+            html_dict = db.get("html") or {}
         try:
             for kommun in self.kommuner:
                 if all or not kommun.is_compiled:
-                    print(f"Compiling {kommun}")
-                    kommun.compile()
+                    html_list = html_dict.get(kommun.id)
+                    if not html_list:
+                        print(f"*** No HTML found for {kommun} - fetch needed! ***")
+                    else:
+                        print(f"Compiling {kommun}")
+                        kommun.compile(html_list)
         finally:
             self.sync_db()
 
     def fetch_data(self, all=False):
-        """If all=False, only fetch those in need of fetching"""
-        try:
-            for kommun in self.kommuner:
-                if all or not kommun.is_fetched:
-                    print(f"Fetching data for {kommun}")
-                    kommun.fetch()
-        finally:
-            self.sync_db()
+        """
+        If all=False, only fetch those in need of fetching.
+
+        In order to minimize memory usage, we don't store the html as an
+        object attribute anywhere.
+        """
+        with shelve.open(self.db_name, "c") as db:
+            html_dict = db.get("html") or {}
+            try:
+                for kommun in self.kommuner:
+                    if all or kommun.id not in html_dict:
+                        print(f"Fetching data for {kommun}")
+                        html_dict[kommun.id] = kommun.fetch()
+            finally:
+                db["html"] = html_dict
 
     def fetch_links(self):
         response = requests.get("https://sv.wikipedia.org/wiki/Lista_över_Sveriges_kommuner")
@@ -270,5 +295,18 @@ class Kommunpoet:
         return random.choice(self.kommuner)
 
     def sync_db(self):
-        with shelve.open(self.db_name, "n") as db:
+        with shelve.open(self.db_name, "c") as db:
             db["kommuner"] = self.kommuner
+
+    def migrate_html(self):
+        # TODO: remove after migration
+        with shelve.open(self.db_name, "c") as db:
+            html_dict = db.get("html") or {}
+        kommuner = []
+        for kommun in self.kommuner:
+            print(kommun)
+            html_dict[kommun.id] = kommun.html
+            kommuner.append(Kommun.clone(kommun))
+        with shelve.open(self.db_name, "n") as db:
+            db["html"] = html_dict
+            db["kommuner"] = kommuner

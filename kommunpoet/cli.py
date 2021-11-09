@@ -35,7 +35,7 @@ def test_server(args):
 def random(args):
     kommun = Kommunpoet().get_random_kommun()
     print(f"{kommun.name}\n")
-    print(kommun.get_poem(args.chaos))
+    print(kommun.get_poem(chaos=args.chaos))
 
 
 def main():

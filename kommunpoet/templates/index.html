@@ -51,7 +51,7 @@
 
         <div class="container flex-grow-1">
             <div class="my-4">
-                <form action="" method="get">
+                <form action="" method="get" id="form">
                     <select name="id" class="me-4 form-select d-inline-block w-auto bg-dark text-light mb-3 mb-sm-0">
                         {% for id, name in choices %}<option value="{{ id }}"{% if id == kommun_id %} selected{% endif %}>{{ name }}</option>{% endfor %}
                     </select>
@@ -60,7 +60,7 @@
                             {% if chaos %} checked{% endif %}>
                         <label class="form-check-label" for="chaos">KaoZ!</label>
                     </div>
-                    <button type="submit" class="btn text-light border-light">Generera dikt</button>
+                    <button type="submit" id="submit" class="btn btn-primary">{{ submit_text }}</button>
                 </form>
             </div>
             {% if error %}
@@ -85,6 +85,11 @@
             </div>
         </footer>
     </div>
+    <script>
+        document.querySelector("#form").addEventListener("submit", () => {
+            document.querySelector("#submit").disabled = true;
+        })
+    </script>
 </body>
 
 </html>

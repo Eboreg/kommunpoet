@@ -14,6 +14,7 @@ class Application:
     seed: Optional[int]
 
     def __init__(self, environ, start_response):
+        random.seed()
         self.environ = environ
         self.start_response = start_response
         self.qs = parse_qs(environ["QUERY_STRING"])
@@ -45,6 +46,7 @@ class Application:
             kommun_name=kommun.name,
             poem=poem,
             error=self.error,
+            submit_text=self.get_submit_text(),
         )
 
     def get_html(self, context: dict) -> str:
@@ -72,7 +74,6 @@ class Application:
         return urljoin(host, self.path) + "?" + urlencode(qs, doseq=True)
 
     def get_redirect(self) -> Tuple[str, list, bytes]:
-        random.seed()
         qs = self.qs.copy()
         qs.update(seed=[str(random.randint(1, sys.maxsize))])
         if not self.environ["QUERY_STRING"]:
@@ -96,3 +97,7 @@ class Application:
             ("Content-Length", str(len(html))),
         ]
         return "200 OK", headers, html.encode("utf-8")
+
+    def get_submit_text(self) -> str:
+        texts = ["Dikta", "Skapa", "Kväd", "Dikta", "Besjung", "Skalda", "Författa", "Utgjut"]
+        return random.choice(texts)
